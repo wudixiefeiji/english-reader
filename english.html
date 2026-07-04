@@ -8,18 +8,18 @@
 <title>英语跟读学习</title>
 <style>
   :root {
-    --bg: #0b0b0d;
-    --card: #161618;
-    --card2: #1c1c1f;
+    --bg: #0f0f14;
+    --card: #1a1a22;
+    --card2: #22222e;
     --text: #e4e4e6;
     --sub: #8e8e93;
     --accent: #4da6ff;
     --accent2: #3385d6;
     --warn: #f5a623;
     --danger: #e05555;
-    --border: #262629;
-    --highlight: rgba(77,166,255,0.2);
-    --word-hl: rgba(77,166,255,0.45);
+    --border: #2a2a35;
+    --highlight: rgba(77,166,255,0.15);
+    --word-hl: rgba(77,166,255,0.4);
     --green: #34c759;
     --cn-color: #a0a0a8;
   }
@@ -31,55 +31,92 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: 14px;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
   }
   header {
     text-align: center;
-    padding: 6px 0 4px;
+    padding: 8px 0 6px;
     flex-shrink: 0;
   }
-  header h1 { font-size: 18px; font-weight: 700; }
-  header p { font-size: 10px; color: var(--sub); margin-top: 1px; }
+  header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  header p { font-size: 11px; color: var(--sub); margin-top: 3px; }
 
-  .input-section { flex-shrink: 0; margin-bottom: 6px; }
+  /* 输入区：链接 + 文本框合并为一张卡片 */
+  .input-section {
+    flex-shrink: 0;
+    margin-bottom: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2px 14px;
+  }
+  .input-section > div {
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0 !important;
+  }
+  .input-section input#urlInput {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text) !important;
+    font-size: 13px !important;
+    padding: 4px 0 !important;
+    outline: none !important;
+    font-family: inherit !important;
+  }
+  .input-section input#urlInput::placeholder { color: var(--sub) !important; opacity: 1; }
+  .input-section > div > button {
+    padding: 8px 16px !important;
+    border-radius: 9px !important;
+    border: none !important;
+    background: var(--accent) !important;
+    color: #fff !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    font-family: inherit !important;
+    white-space: nowrap !important;
+    transition: opacity .15s, transform .1s;
+  }
+  .input-section > div > button:active { transform: scale(0.96); opacity: 0.9; }
   textarea {
     width: 100%;
-    height: 80px;
-    background: var(--card);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
+    height: 76px;
+    background: transparent;
+    border: none;
     color: var(--text);
     font-size: 13px;
-    line-height: 1.5;
-    padding: 8px 10px;
+    line-height: 1.55;
+    padding: 12px 0;
     resize: none;
     outline: none;
     font-family: inherit;
-    transition: border-color .2s;
   }
-  textarea:focus { border-color: var(--accent); }
-  textarea::placeholder { color: #444; font-size: 12px; }
+  textarea::placeholder { color: var(--sub); font-size: 12px; }
 
   .toolbar {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-top: 5px;
+    gap: 6px;
+    margin-top: 2px;
     flex-wrap: wrap;
+    flex-shrink: 0;
   }
   .chip {
     display: flex;
     align-items: center;
-    gap: 3px;
-    background: var(--card2);
+    gap: 5px;
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 5px 9px;
+    border-radius: 999px;
+    padding: 7px 12px;
     font-size: 11px;
     color: var(--sub);
     cursor: pointer;
-    transition: all .15s;
+    transition: all .18s ease;
     white-space: nowrap;
     user-select: none;
   }
@@ -87,8 +124,8 @@
   .chip:active { transform: scale(0.96); }
   .chip input[type=range] {
     -webkit-appearance: none;
-    width: 45px;
-    height: 2px;
+    width: 48px;
+    height: 3px;
     background: var(--border);
     border-radius: 2px;
     outline: none;
@@ -99,6 +136,7 @@
     width: 14px; height: 14px;
     background: var(--accent);
     border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
   }
   .chip select {
     background: transparent; border: none; color: var(--sub); font-size: 11px;
@@ -107,111 +145,120 @@
 
   .btn-row {
     display: flex;
-    gap: 6px;
-    margin-top: 5px;
+    gap: 8px;
+    margin-top: 8px;
     flex-shrink: 0;
   }
   .btn {
     flex: 1;
-    padding: 10px 0;
-    border-radius: 10px;
+    padding: 14px 0;
+    border-radius: 12px;
     border: none;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all .12s;
+    transition: all .15s ease;
     font-family: inherit;
   }
-  .btn:active { transform: scale(0.97); opacity: 0.85; }
-  .btn-play { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; flex: 2.5; }
-  .btn-sm { flex: 1; background: var(--card); color: var(--text); border: 1px solid var(--border); font-size: 12px; }
-  .btn-sm.stop { color: var(--danger); border-color: var(--danger); }
-  .btn:disabled { opacity: 0.3; pointer-events: none; }
+  .btn:active { transform: scale(0.97); opacity: 0.88; }
+  .btn-play { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; flex: 2.5; box-shadow: 0 4px 14px rgba(77,166,255,0.25); }
+  .btn-sm { flex: 1; background: var(--card); color: var(--text); border: 1px solid var(--border); font-size: 13px; }
+  .btn-sm.stop { color: var(--danger); border-color: rgba(224,85,85,0.4); }
+  .btn:disabled { opacity: 0.3; pointer-events: none; box-shadow: none; }
 
   .progress-wrap {
-    height: 2px;
-    background: var(--border);
+    height: 3px;
+    background: var(--card);
     margin: 6px 0;
-    border-radius: 1px;
+    border-radius: 2px;
     flex-shrink: 0;
     overflow: hidden;
   }
   .progress-bar {
     height: 100%;
-    background: var(--accent);
+    background: linear-gradient(90deg, var(--accent), #6db8ff);
     width: 0%;
     transition: width 0.3s;
-    border-radius: 1px;
+    border-radius: 2px;
   }
 
+  /* Tab 胶囊式分段控制器 */
   .tab-row {
     display: flex;
     gap: 0;
-    margin-bottom: 6px;
+    margin: 4px 0 6px;
     flex-shrink: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3px;
   }
   .tab-btn {
     flex: 1;
     text-align: center;
-    padding: 7px 0;
+    padding: 8px 0;
     font-size: 12px;
     font-weight: 600;
     color: var(--sub);
     background: transparent;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-radius: 9px;
     cursor: pointer;
     font-family: inherit;
-    transition: all .15s;
+    transition: all .2s ease;
   }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn.active { color: var(--text); background: var(--card2); box-shadow: 0 1px 4px rgba(0,0,0,0.35); }
 
   .display-area {
     flex: 1;
     background: var(--card);
-    border-radius: 10px;
+    border-radius: 14px;
     border: 1px solid var(--border);
-    padding: 10px;
+    padding: 12px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     min-height: 120px;
   }
   .display-area .empty {
-    color: #333;
+    color: #444;
     text-align: center;
-    padding-top: 40px;
+    padding-top: 48px;
     font-size: 12px;
-    line-height: 1.8;
+    line-height: 1.9;
   }
 
+  /* 句子卡片 */
   .sent-block {
-    margin-bottom: 10px;
-    padding: 7px 9px;
-    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 12px 14px;
+    border-radius: 12px;
     border: 1px solid transparent;
-    transition: all 0.25s;
+    background: transparent;
+    transition: all 0.25s ease;
     cursor: pointer;
   }
   .sent-block.active-block {
-    border-color: var(--accent);
-    background: rgba(77,166,255,0.06);
+    border-color: rgba(77,166,255,0.5);
+    background: rgba(77,166,255,0.08);
+    box-shadow: 0 2px 12px rgba(77,166,255,0.12);
   }
-  .sent-block .text-line { font-size: 15px; line-height: 1.8; font-weight: 500; }
-  .sent-block .cn-line { font-size: 12px; color: var(--cn-color); line-height: 1.5; margin-top: 2px; display: none; }
+  .sent-block .text-line { font-size: 15px; line-height: 1.75; font-weight: 500; }
+  .sent-block .cn-line { font-size: 12px; color: var(--cn-color); line-height: 1.55; margin-top: 4px; display: none; }
   .sent-block .cn-line.show { display: block; }
   .sent-block .lang-tag {
     display: inline-block;
     font-size: 9px;
-    padding: 1px 5px;
+    padding: 2px 6px;
     border-radius: 5px;
-    margin-right: 5px;
+    margin-right: 6px;
     vertical-align: middle;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.3px;
   }
-  .sent-block .lang-tag.en { background: rgba(77,166,255,0.2); color: var(--accent); }
-  .sent-block .lang-tag.cn { background: rgba(245,166,35,0.2); color: var(--warn); }
+  .sent-block .lang-tag.en { background: rgba(77,166,255,0.18); color: var(--accent); }
+  .sent-block .lang-tag.cn { background: rgba(245,166,35,0.18); color: var(--warn); }
 
-  .word { display: inline; cursor: pointer; padding: 1px 2px; border-radius: 3px; transition: background 0.12s; }
+  .word { display: inline; cursor: pointer; padding: 1px 3px; border-radius: 4px; transition: background 0.12s; }
   .word.active-word { background: var(--word-hl); }
 
   /* 板块分隔标题 */
@@ -221,102 +268,110 @@
     color: var(--accent);
     background: rgba(77,166,255,0.08);
     border-left: 3px solid var(--accent);
-    padding: 6px 10px;
-    margin: 10px 0 6px;
-    border-radius: 0 6px 6px 0;
+    padding: 7px 12px;
+    margin: 14px 0 8px;
+    border-radius: 0 8px 8px 0;
+    letter-spacing: 0.3px;
   }
+  .section-divider:first-child { margin-top: 4px; }
 
   /* 生词本 */
   .vocab-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
-    margin-bottom: 6px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
     background: var(--card2);
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid var(--border);
     font-size: 14px;
     gap: 10px;
+    transition: transform .12s;
   }
-  .vocab-item .v-word { font-weight: 700; color: var(--accent); min-width: 60px; font-size: 15px; }
+  .vocab-item:active { transform: scale(0.99); }
+  .vocab-item .v-word { font-weight: 700; color: var(--accent); min-width: 64px; font-size: 15px; }
   .vocab-item .v-phonetic { color: var(--sub); font-size: 11px; min-width: 60px; }
   .vocab-item .v-cn { color: var(--cn-color); font-size: 12px; flex: 1; }
-  .vocab-item .v-btns { display: flex; gap: 4px; }
+  .vocab-item .v-btns { display: flex; gap: 6px; }
   .vocab-item .v-btn {
     font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
     border: 1px solid var(--border);
-    background: var(--card2);
+    background: var(--card);
     color: var(--text);
     cursor: pointer;
     font-family: inherit;
     white-space: nowrap;
+    transition: all .12s;
   }
-  .vocab-item .v-btn.del { color: var(--danger); border-color: transparent; }
-  .vocab-clear { text-align: center; padding: 10px; font-size: 11px; color: var(--sub); cursor: pointer; }
-  .vocab-actions { display: flex; gap: 6px; padding: 8px 0; justify-content: center; }
+  .vocab-item .v-btn:active { transform: scale(0.94); }
+  .vocab-item .v-btn.del { color: var(--danger); border-color: transparent; background: transparent; }
+  .vocab-clear { text-align: center; padding: 12px; font-size: 11px; color: var(--sub); cursor: pointer; }
+  .vocab-actions { display: flex; gap: 8px; padding: 6px 0 10px; justify-content: center; }
   .vocab-actions .v-act {
     font-size: 11px;
-    padding: 5px 12px;
-    border-radius: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--card2);
     color: var(--accent);
     cursor: pointer;
     font-family: inherit;
+    transition: all .12s;
   }
+  .vocab-actions .v-act:active { transform: scale(0.96); }
 
   /* 日记 */
   .diary-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 0 8px;
-    font-size: 11px;
+    padding: 6px 0 10px;
+    font-size: 12px;
     color: var(--sub);
   }
   .diary-header select {
     background: var(--card2);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 4px 8px;
-    border-radius: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
     font-size: 12px;
     font-family: inherit;
     outline: none;
   }
   .diary-entry {
-    margin-bottom: 14px;
-    padding: 10px;
+    margin-bottom: 12px;
+    padding: 14px;
     background: var(--card2);
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid var(--border);
   }
   .diary-entry .diary-date {
     font-size: 12px;
     font-weight: 600;
     color: var(--accent);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .diary-entry .diary-content {
     font-size: 13px;
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.65;
     white-space: pre-wrap;
   }
   .diary-entry .diary-meta {
     font-size: 10px;
     color: var(--sub);
-    margin-top: 4px;
+    margin-top: 6px;
   }
   .diary-copy-btn {
     display: block;
     width: 100%;
-    padding: 8px;
-    margin-top: 8px;
-    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 12px;
     border: 1px solid var(--accent);
     background: transparent;
     color: var(--accent);
@@ -324,9 +379,16 @@
     cursor: pointer;
     font-family: inherit;
     font-weight: 600;
+    transition: all .15s;
   }
-  .diary-copy-btn:active { background: rgba(77,166,255,0.1); }
-  .diary-copy-msg { text-align: center; font-size: 11px; color: var(--green); margin-top: 4px; display: none; }
+  .diary-copy-btn:active { background: rgba(77,166,255,0.12); transform: scale(0.99); }
+  .diary-copy-msg { text-align: center; font-size: 11px; color: var(--green); margin-top: 6px; display: none; }
+
+  /* 统计卡片：覆盖日记页内联样式 */
+  #displayArea div[style*="flex:1"][style*="background:var(--card2)"][style*="padding:10px"] {
+    border-radius: 14px !important;
+    padding: 14px 6px !important;
+  }
 
   /* 弹窗 */
   .popup {
@@ -336,46 +398,48 @@
     transform: translate(-50%, -50%);
     background: var(--card2);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 18px;
+    border-radius: 20px;
+    padding: 24px 20px 20px;
     z-index: 100;
-    min-width: 260px;
+    min-width: 280px;
     max-width: 92vw;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.7);
     display: none;
   }
   .popup.show { display: block; }
-  .popup .word-big { font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+  .popup .word-big { font-size: 26px; font-weight: 700; color: var(--accent); margin-bottom: 4px; letter-spacing: -0.3px; }
   .popup .syllables { font-size: 13px; color: var(--warn); margin-bottom: 2px; }
-  .popup .word-cn { font-size: 13px; color: var(--cn-color); margin-bottom: 2px; }
-  .popup .phonetic { font-size: 12px; color: var(--sub); margin-bottom: 12px; }
-  .popup .popup-btns { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .popup .word-cn { font-size: 14px; color: var(--cn-color); margin-bottom: 2px; }
+  .popup .phonetic { font-size: 12px; color: var(--sub); margin-bottom: 16px; }
+  .popup .popup-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
   .popup .popup-btn {
-    padding: 6px 12px;
-    border-radius: 7px;
+    padding: 9px 14px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--card);
     color: var(--text);
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
     font-family: inherit;
+    transition: all .12s;
   }
+  .popup .popup-btn:active { transform: scale(0.95); }
   .popup .popup-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .popup .popup-btn.syllable-btn { background: rgba(245,166,35,0.15); border-color: var(--warn); color: var(--warn); font-size: 10px; }
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; display: none; }
+  .popup .popup-btn.syllable-btn { background: rgba(245,166,35,0.15); border-color: var(--warn); color: var(--warn); font-size: 11px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; display: none; }
   .overlay.show { display: block; }
 
   .status-bar {
     text-align: center;
-    font-size: 10px;
+    font-size: 11px;
     color: var(--sub);
-    padding: 4px 0;
+    padding: 8px 0 2px;
     flex-shrink: 0;
-    min-height: 16px;
+    min-height: 18px;
   }
   .status-bar.playing { color: var(--accent); }
-  footer { text-align: center; font-size: 9px; color: #2a2a2a; padding: 2px 0 0; flex-shrink: 0; }
+  footer { text-align: center; font-size: 10px; color: #3a3a45; padding: 6px 0 0; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -570,15 +634,13 @@ async function importFromURL() {
   statusBar.textContent = '正在导入内容…';
   statusBar.className = 'status-bar';
   
-  // 尝试多个代理
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  ];
-  
+  // 尝试多个方案
   let content = '';
   
-  // 先试 CORS 代理
+  // 方案1：CORS 代理（可能拿到 iframe 外层 HTML）
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
   for (const proxy of proxies) {
     try {
       const resp = await fetch(proxy);
@@ -589,18 +651,20 @@ async function importFromURL() {
       }
     } catch(e) {}
   }
-  
-  // 如果代理失败，尝试直接 fetch（可能 CORS 失败）
-  if (!content) {
+
+  // 方案2：直接 fetch
+  if (!content || content.length < 50) {
     try {
       const resp = await fetch(url);
       const html = await resp.text();
       content = extractTextFromHTML(html);
-    } catch(e) {
-      // CORS 失败，提示用户手动复制
-      statusBar.textContent = '⚠️ 链接导入失败，请在卡片页面长按→全选→复制→粘贴到文本框';
-      return;
-    }
+    } catch(e) {}
+  }
+
+  // 方案3：提示用户复制
+  if (!content || content.length < 50) {
+    statusBar.textContent = '⚠️ 链接内容在安全框架内，无法自动提取。请在卡片页面长按→全选→复制→粘贴到文本框';
+    return;
   }
   
   if (content && content.length > 20) {
