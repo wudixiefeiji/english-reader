@@ -214,6 +214,18 @@
   .word { display: inline; cursor: pointer; padding: 1px 2px; border-radius: 3px; transition: background 0.12s; }
   .word.active-word { background: var(--word-hl); }
 
+  /* 板块分隔标题 */
+  .section-divider {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(77,166,255,0.08);
+    border-left: 3px solid var(--accent);
+    padding: 6px 10px;
+    margin: 10px 0 6px;
+    border-radius: 0 6px 6px 0;
+  }
+
   /* 生词本 */
   .vocab-item {
     display: flex;
@@ -374,7 +386,11 @@
 </header>
 
 <div class="input-section">
-  <textarea id="textInput" placeholder="粘贴英文/中英混合/学习卡片内容…&#10;&#10;支持格式：&#10;· 普通英文段落&#10;· 中英对照（自动识别语言）&#10;· 学习卡片内容（直接从页面复制粘贴）"></textarea>
+  <div style="display:flex;gap:6px;margin-bottom:6px;">
+    <input type="text" id="urlInput" placeholder="粘贴学习卡片链接…" style="flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-size:12px;padding:8px 10px;outline:none;font-family:inherit;">
+    <button onclick="importFromURL()" style="padding:8px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">📥 导入</button>
+  </div>
+  <textarea id="textInput" placeholder="或直接粘贴英文/中英混合/学习卡片内容…"></textarea>
 </div>
 
 <div class="toolbar">
@@ -393,7 +409,9 @@
 
 <div class="btn-row">
   <button class="btn btn-play" id="btnPlay" onclick="startReading()">▶ 开始朗读</button>
+  <button class="btn btn-sm" id="btnPrev" onclick="prevSentence()" disabled>⏮</button>
   <button class="btn btn-sm" id="btnPause" onclick="togglePause()" disabled>⏯</button>
+  <button class="btn btn-sm" id="btnNext" onclick="nextSentence()" disabled>⏭</button>
   <button class="btn btn-sm stop" id="btnStop" onclick="stopReading()" disabled>⏹</button>
 </div>
 
@@ -425,10 +443,7 @@
   </div>
 </div>
 
-<footer>
-  💾 离线保存：Safari 打开 → 分享 ⎋ → 存储到文件 → 以后永远能用<br>
-  推荐 Safari 打开 · 系统语音引擎
-</footer>
+<footer>📖 英语跟读学习 · Safari 打开效果最佳</footer>
 
 <script>
 // ========== 全局 ==========
@@ -448,6 +463,7 @@ let diaryData = {};
 let currentTab = 'text';
 let speakingWord3 = false;
 let renderVersion = 0; // 防止过期渲染
+let lastParsedCard = null; // 最近一次解析的学习卡片（用于朗读时批量加生词）
 
 // DOM
 const textInput = document.getElementById('textInput');
@@ -547,9 +563,94 @@ function detectLang(text) {
   return cn > en ? 'zh' : 'en';
 }
 
+// ========== 链接导入 ==========
+async function importFromURL() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { statusBar.textContent = '请输入链接'; return; }
+  statusBar.textContent = '正在导入内容…';
+  statusBar.className = 'status-bar';
+  
+  // 尝试多个代理
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  ];
+  
+  let content = '';
+  
+  // 先试 CORS 代理
+  for (const proxy of proxies) {
+    try {
+      const resp = await fetch(proxy);
+      if (resp.ok) {
+        const html = await resp.text();
+        content = extractTextFromHTML(html);
+        if (content && content.length > 50) break;
+      }
+    } catch(e) {}
+  }
+  
+  // 如果代理失败，尝试直接 fetch（可能 CORS 失败）
+  if (!content) {
+    try {
+      const resp = await fetch(url);
+      const html = await resp.text();
+      content = extractTextFromHTML(html);
+    } catch(e) {
+      // CORS 失败，提示用户手动复制
+      statusBar.textContent = '⚠️ 链接导入失败，请在卡片页面长按→全选→复制→粘贴到文本框';
+      return;
+    }
+  }
+  
+  if (content && content.length > 20) {
+    textInput.value = content;
+    statusBar.textContent = '✅ 导入成功！';
+    await renderDisplay();
+  } else {
+    statusBar.textContent = '⚠️ 未能提取内容，请手动复制粘贴';
+  }
+}
+
+function extractTextFromHTML(html) {
+  // 尝试用 DOMParser 解析
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    // 移除 script/style
+    ['script','style','nav','footer','noscript'].forEach(tag => {
+      doc.querySelectorAll(tag).forEach(el => el.remove());
+    });
+    // 找 main/article/body
+    const main = doc.querySelector('main') || doc.querySelector('article') || doc.body;
+    if (main) {
+      // 提取所有文本节点，保留换行
+      const blocks = [];
+      main.querySelectorAll('h1,h2,h3,p,li,div,span').forEach(el => {
+        const text = el.textContent.trim();
+        if (text && text.length > 1 && !blocks.includes(text)) {
+          blocks.push(text);
+        }
+      });
+      return blocks.join('\n');
+    }
+  } catch(e) {}
+  // 回退：简单去标签
+  return html.replace(/<[^>]+>/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // ========== 翻译 ==========
 async function translateText(text) {
-  // 策略1：用内置词典逐词翻译（离线可用）
+  // 策略1：调用 Google Translate（支持 CORS，免费）
+  try {
+    const resp = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`);
+    const data = await resp.json();
+    if (data && data[0]) {
+      const result = data[0].map(seg => seg[0]).join('');
+      if (result && result !== text) return result;
+    }
+  } catch(e) {}
+  
+  // 策略2：用内置词典逐词翻译（离线兜底）
   const words = text.split(/\s+/);
   const cnWords = words.map(w => {
     const clean = w.replace(/[.,!?;:'"()\[\]{}]/g, '').toLowerCase();
@@ -557,20 +658,245 @@ async function translateText(text) {
   });
   const hasTranslation = cnWords.some(w => w !== '');
   if (hasTranslation) {
-    // 至少有部分词能翻译，拼接结果
-    return cnWords.filter(w => w !== '').join('；');
+    return cnWords.filter(w => w !== '').join(' ');
   }
-
-  // 策略2：调用在线 API（需要网络）
-  try {
-    const resp = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`);
-    const data = await resp.json();
-    const result = data.responseData?.translatedText || '';
-    if (result.includes('MYMEMORY') || result.includes('WARNING') || result.includes('TRANSLATION') || result.includes('LIMIT')) return '';
-    if (result !== text) return result;
-  } catch(e) {}
   return '';
 }
+
+
+// ========== 学习卡片解析（WorkBuddy 结构化内容）==========
+// 解析 WorkBuddy 学习卡片文本，返回 ParsedCard 或 null（未识别为卡片时）
+function parseLearningCard(text) {
+  if (!text || !text.trim()) return null;
+
+  // --- 阶段 A：行归一化 ---
+  const lines = text.split(/\r?\n/)
+    .map(s => s.trim())
+    .map(s => s.replace(/^\d+\.\s*/, ''))   // 去掉 "1. " 开头
+    .filter(s => s.length > 0 && !/^\d+$/.test(s)); // 丢弃空行与纯数字行
+
+  if (lines.length === 0) return null;
+
+  // --- 阶段 B：板块边界检测 ---
+  const HEADER_RE = [
+    { type: 'vocab',    re: /今日新词|NEW/i },
+    { type: 'review',   re: /今日复习|REVIEW/i },
+    { type: 'dialogue', re: /口语对话|对话/ },
+    { type: 'essay',    re: /每日小作文|小作文|作文/ },
+  ];
+  const META_DAY_RE = /^DAY\s*\d+/i;
+  const STATS_RE = /(今日新词|今日复习|累计|新词|复习|词汇)/;
+
+  function matchHeader(line) {
+    for (const h of HEADER_RE) if (h.re.test(line)) return h.type;
+    return null;
+  }
+  // 统计行：含关键词且有 2+ 组数字（如 "15今日新词 45今日复习 90累计词汇"）
+  function isStatsLine(line) {
+    return STATS_RE.test(line) && (line.match(/\d+/g) || []).length >= 2;
+  }
+
+  // 切分：meta 行 + 板块段
+  const meta = { day: '', topic: '', stats: null };
+  const sections = [];
+  let preSectionLines = []; // 第一个板块头之前的非 meta 行
+  let cur = null;           // 当前正在收集的板块
+  let daySeen = false;
+
+  for (const line of lines) {
+    // 统计行优先识别（避免 "15今日新词..." 被板块头误匹配）
+    if (!cur && isStatsLine(line)) {
+      const nums = (line.match(/\d+/g) || []).map(Number);
+      if (nums.length >= 3) meta.stats = { new: nums[0], review: nums[1], total: nums[2] };
+      continue;
+    }
+    const ht = matchHeader(line);
+    if (ht) {
+      // 结束上一个板块
+      if (cur) sections.push(cur);
+      cur = { type: ht, title: line, rawLines: [] };
+      continue;
+    }
+    if (cur) {
+      cur.rawLines.push(line);
+    } else {
+      // 还没遇到板块头，处理 meta
+      if (META_DAY_RE.test(line)) {
+        meta.day = line;
+        daySeen = true;
+      } else if (STATS_RE.test(line) && /\d+/.test(line)) {
+        // 统计行：尝试提取数字
+        const nums = (line.match(/\d+/g) || []).map(Number);
+        if (nums.length >= 3) meta.stats = { new: nums[0], review: nums[1], total: nums[2] };
+      } else if (daySeen && !meta.topic) {
+        meta.topic = line;
+      } else {
+        preSectionLines.push(line);
+      }
+    }
+  }
+  if (cur) sections.push(cur);
+
+  // 没有任何板块头 → 不是卡片，回退
+  if (sections.length === 0) return null;
+
+  // 第一个板块头之前的杂行作为 intro 板块（交给句子解析）
+  if (preSectionLines.length > 0) {
+    sections.unshift({ type: 'intro', title: '', rawLines: preSectionLines });
+  }
+
+  // --- 阶段 C：各板块专用解析 ---
+  const card = { meta, sections: [] };
+  for (const sec of sections) {
+    const items = parseSectionItems(sec.type, sec.rawLines);
+    card.sections.push({ type: sec.type, title: sec.title, items });
+  }
+  return card;
+}
+
+// 按板块类型解析 body 行
+function parseSectionItems(type, rawLines) {
+  if (type === 'vocab')    return parseVocabSection(rawLines);
+  if (type === 'review')   return parseReviewSection(rawLines);
+  if (type === 'dialogue') return parseDialogueSection(rawLines);
+  if (type === 'essay')    return parseEssaySection(rawLines);
+  // intro / 未知 → 每行作为一个句子项
+  return rawLines.map(s => ({ text: s, lang: detectLang(s) }));
+}
+
+// vocab：4 行一组 [EN词组, CN释义, EN例句, CN例句]；容错 2 行组
+function parseVocabSection(lines) {
+  const items = [];
+  let i = 0;
+  while (i < lines.length) {
+    // 尝试 4 行组（例句须为多词句子，避免把两个 2 行词条误并）
+    if (i + 3 < lines.length &&
+        detectLang(lines[i]) === 'en' && detectLang(lines[i+1]) === 'zh' &&
+        detectLang(lines[i+2]) === 'en' && detectLang(lines[i+3]) === 'zh' &&
+        (/\s/.test(lines[i+2]) || lines[i+2].length > 12)) {
+      items.push({ phrase: lines[i], cn: lines[i+1], example: lines[i+2], exampleCn: lines[i+3] });
+      i += 4;
+    }
+    // 2 行组（词组 + 释义，无例句）
+    else if (i + 1 < lines.length && detectLang(lines[i]) === 'en' && detectLang(lines[i+1]) === 'zh') {
+      items.push({ phrase: lines[i], cn: lines[i+1], example: '', exampleCn: '' });
+      i += 2;
+    }
+    // 单行兜底
+    else {
+      items.push({ phrase: lines[i], cn: '', example: '', exampleCn: '' });
+      i++;
+    }
+  }
+  return items;
+}
+
+// review：同行 "EN CN" 或 EN/CN 分行交替，自动判断
+function parseReviewSection(lines) {
+  if (lines.length === 0) return [];
+  // 统计同时含拉丁字母与汉字的行数
+  const mixedCount = lines.filter(l => /[a-zA-Z]/.test(l) && /[\u4e00-\u9fff]/.test(l)).length;
+  const items = [];
+  if (mixedCount >= Math.ceil(lines.length / 2)) {
+    // 同行格式：在首个中文字符处切分
+    for (const line of lines) {
+      const m = line.match(/^(.*?[a-zA-Z0-9'’\-.\s]+)\s*([\u4e00-\u9fff].*)$/);
+      if (m) items.push({ en: m[1].trim(), cn: m[2].trim() });
+      else items.push({ en: line, cn: '' });
+    }
+  } else {
+    // 分行交替：EN 行 + CN 行配对
+    for (let i = 0; i < lines.length; i++) {
+      const lang = detectLang(lines[i]);
+      if (lang === 'en') {
+        const enText = lines[i];
+        const cn = (i + 1 < lines.length && detectLang(lines[i+1]) === 'zh') ? lines[++i] : '';
+        items.push({ en: enText, cn });
+      } else if (lang === 'zh' && items.length > 0 && !items[items.length-1].cn) {
+        items[items.length-1].cn = lines[i];
+      } else {
+        items.push({ en: '', cn: lines[i] });
+      }
+    }
+  }
+  return items;
+}
+
+// dialogue：每行 "角色: 台词"，英文台词后跟中文台词则配对为 lineCn
+function parseDialogueSection(lines) {
+  const items = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const m = line.match(/^([^:：]+)[:：]\s*(.*)$/);
+    let role = '', spoken = line;
+    if (m) { role = m[1].trim(); spoken = m[2].trim(); }
+    const spokenLang = detectLang(spoken);
+    let lineCn = '';
+    // 英文台词 + 紧随的中文台词（可能也带角色前缀）配对为翻译
+    if (spokenLang === 'en' && i + 1 < lines.length) {
+      const next = lines[i + 1];
+      const nm = next.match(/^([^:：]+)[:：]\s*(.*)$/);
+      const nextSpoken = nm ? nm[2].trim() : next;
+      if (detectLang(nextSpoken) === 'zh') {
+        lineCn = nextSpoken;
+        i++;
+      }
+    }
+    items.push({ role, line: spoken, lineCn });
+    i++;
+  }
+  return items;
+}
+
+// essay：EN/CN 行交替配对
+function parseEssaySection(lines) {
+  const items = [];
+  for (const line of lines) {
+    const lang = detectLang(line);
+    if (lang === 'en') {
+      items.push({ en: line, cn: '' });
+    } else {
+      if (items.length > 0 && !items[items.length-1].cn) items[items.length-1].cn = line;
+      else items.push({ en: '', cn: line });
+    }
+  }
+  return items;
+}
+
+// ========== 卡片 → 朗读句子序列 ==========
+// 将 ParsedCard 展开为 sentences[]，每项 {text, lang, cn, sectionType, sectionTitle, itemId}
+function cardToSentences(card) {
+  const out = [];
+  if (!card) return out;
+  for (const sec of card.sections) {
+    const t = sec.type, title = sec.title;
+    if (t === 'intro') {
+      for (const it of sec.items) {
+        out.push({ text: it.text, lang: it.lang, cn: '', sectionType: t, sectionTitle: title, itemId: -1 });
+      }
+      continue;
+    }
+    sec.items.forEach((it, idx) => {
+      if (t === 'vocab') {
+        // 朗读例句（更有学习价值）；词组由 startReading 批量加入生词本
+        if (it.example)  out.push({ text: it.example,  lang: 'en', cn: it.exampleCn || '', sectionType: t, sectionTitle: title, itemId: idx });
+        else if (it.phrase) out.push({ text: it.phrase, lang: 'en', cn: it.cn || '', sectionType: t, sectionTitle: title, itemId: idx });
+      } else if (t === 'review') {
+        if (it.en) out.push({ text: it.en, lang: 'en', cn: it.cn || '', sectionType: t, sectionTitle: title, itemId: idx });
+        else if (it.cn) out.push({ text: it.cn, lang: 'zh', cn: '', sectionType: t, sectionTitle: title, itemId: idx });
+      } else if (t === 'dialogue') {
+        if (it.line)   out.push({ text: it.line,   lang: detectLang(it.line),   cn: it.lineCn || '', sectionType: t, sectionTitle: title, itemId: idx });
+        else if (it.lineCn) out.push({ text: it.lineCn, lang: 'zh', cn: '', sectionType: t, sectionTitle: title, itemId: idx });
+      } else if (t === 'essay') {
+        if (it.en) out.push({ text: it.en, lang: 'en', cn: it.cn || '', sectionType: t, sectionTitle: title, itemId: idx });
+        else if (it.cn) out.push({ text: it.cn, lang: 'zh', cn: '', sectionType: t, sectionTitle: title, itemId: idx });
+      }
+    });
+  }
+  return out;
+}
+
 
 // ========== 解析 ==========
 function parseText(text) {
@@ -662,22 +988,66 @@ function getDiaryDates() {
 }
 
 function renderDiary(dateStr) {
-  if (!dateStr) {
-    const dates = getDiaryDates();
-    if (dates.length === 0) {
-      displayArea.innerHTML = '<div class="empty">还没有学习记录<br>开始朗读后会自动记录</div>';
-      return;
+  const dates = getDiaryDates();
+  
+  // 计算统计
+  const today = new Date().toISOString().slice(0, 10);
+  let totalSentences = 0;
+  let totalEntries = 0;
+  dates.forEach(d => {
+    const e = diaryData[d];
+    if (e) {
+      totalEntries += e.entries.length;
+      totalSentences += e.entries.reduce((s, x) => s + (x.wordCount||0), 0);
     }
-    dateStr = dates[0];
+  });
+  // 连续学习天数
+  let streak = 0;
+  const checkDate = new Date(today);
+  while (true) {
+    const ds = checkDate.toISOString().slice(0, 10);
+    if (diaryData[ds] && diaryData[ds].entries.length > 0) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
   }
+  const todayEntries = diaryData[today]?.entries.length || 0;
 
-  const entry = diaryData[dateStr];
-  if (!entry) {
-    displayArea.innerHTML = '<div class="empty">当天没有学习记录</div>';
+  const statsHtml = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--accent);">${streak}</div>
+        <div style="font-size:10px;color:var(--sub);">连续天数</div>
+      </div>
+      <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--warn);">${totalEntries}</div>
+        <div style="font-size:10px;color:var(--sub);">总学习次数</div>
+      </div>
+      <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--green);">${vocabList.length}</div>
+        <div style="font-size:10px;color:var(--sub);">累计生词</div>
+      </div>
+      <div style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--danger);">${todayEntries}</div>
+        <div style="font-size:10px;color:var(--sub);">今日次数</div>
+      </div>
+    </div>
+  `;
+
+  if (dates.length === 0) {
+    displayArea.innerHTML = statsHtml + '<div class="empty">还没有学习记录<br>开始朗读后会自动记录</div>';
     return;
   }
 
-  const dates = getDiaryDates();
+  if (!dateStr) dateStr = dates[0];
+  const entry = diaryData[dateStr];
+  if (!entry) {
+    displayArea.innerHTML = statsHtml + '<div class="empty">当天没有学习记录</div>';
+    return;
+  }
+
   const dateOptions = dates.map(d => `<option value="${d}" ${d===dateStr?'selected':''}>${d}</option>`).join('');
 
   const entriesHtml = entry.entries.map((e, i) => `
@@ -689,15 +1059,15 @@ function renderDiary(dateStr) {
   `).join('');
 
   const totalWords = entry.entries.reduce((s, e) => s + (e.wordCount||0), 0);
-  const allContent = entry.entries.map(e => e.content).join('\n\n---\n\n');
 
   displayArea.innerHTML = `
+    ${statsHtml}
     <div class="diary-header">
       <span>📅 学习日记</span>
       <select onchange="renderDiary(this.value)">${dateOptions}</select>
     </div>
     <div style="font-size:12px;color:var(--sub);margin-bottom:8px;">
-      共 ${entry.entries.length} 次学习 · ${totalWords} 个生词
+      共 ${entry.entries.length} 次学习 · ${totalWords} 个句子
     </div>
     ${entriesHtml}
     <button class="diary-copy-btn" onclick="copyDiaryDay('${dateStr}')">📋 一键复制当日内容（粘贴到备忘录）</button>
@@ -738,11 +1108,37 @@ async function renderDisplay() {
   if (!text) {
     displayArea.innerHTML = '<div class="empty">👆 粘贴文字，自动拆分句子<br>中英文混合也能逐句朗读</div>';
     sentences = [];
+    lastParsedCard = null;
     progressBar.style.width = '0%';
     return;
   }
 
   const myVersion = ++renderVersion;
+
+  // 先尝试结构化卡片解析
+  const card = parseLearningCard(text);
+  lastParsedCard = card;
+  if (card) {
+    sentences = cardToSentences(card);
+    // 卡片内容自带中英对照，无需在线翻译；仅对缺少 cn 的英文句补译
+    statusBar.textContent = '翻译中…';
+    const needTrans = sentences.filter(s => s.lang === 'en' && !s.cn);
+    if (needTrans.length > 0) {
+      const results = await Promise.all(needTrans.map(s => translateText(s.text)));
+      if (myVersion !== renderVersion) return;
+      let ri = 0;
+      for (const s of sentences) {
+        if (s.lang === 'en' && !s.cn) s.cn = results[ri++] || '';
+      }
+    }
+    if (currentTab === 'text') renderSentencesHTML();
+    const metaInfo = card.meta.day ? `${card.meta.day} · ` : '';
+    statusBar.textContent = `${metaInfo}共 ${sentences.length} 句 · 就绪`;
+    statusBar.className = 'status-bar';
+    return;
+  }
+
+  // 回退：普通文本解析
   const rawSentences = parseText(text);
   statusBar.textContent = '翻译中…';
 
@@ -758,7 +1154,14 @@ async function renderDisplay() {
 }
 
 function renderSentencesHTML() {
-  displayArea.innerHTML = sentences.map((s, si) => {
+  let html = '';
+  let lastSection = null;
+  sentences.forEach((s, si) => {
+    // 板块分隔标题
+    if (s.sectionTitle && s.sectionTitle !== lastSection) {
+      lastSection = s.sectionTitle;
+      html += '<div class="section-divider">' + escapeHtml(s.sectionTitle) + '</div>';
+    }
     const isEn = s.lang === 'en';
     const tag = isEn ? '<span class="lang-tag en">EN</span>' : '<span class="lang-tag cn">中</span>';
     let textHtml;
@@ -768,16 +1171,17 @@ function renderSentencesHTML() {
         const trimmed = w.trim();
         if (!trimmed) return w;
         const clean = trimmed.replace(/[.,!?;:'"()\[\]{}]$/, '');
-        return `<span class="word" data-si="${si}" data-wi="${wi}" data-word="${escapeHtml(clean)}">${w}</span>`;
+        return '<span class="word" data-si="' + si + '" data-wi="' + wi + '" data-word="' + escapeHtml(clean) + '">' + w + '</span>';
       }).join('');
     } else {
       textHtml = escapeHtml(s.text);
     }
-    return `<div class="sent-block" data-si="${si}" onclick="clickSentence(${si})">
-      <div class="text-line">${tag}${textHtml}</div>
-      <div class="cn-line ${showCN?'show':''}">${s.cn||''}</div>
-    </div>`;
-  }).join('');
+    html += '<div class="sent-block" data-si="' + si + '" onclick="clickSentence(' + si + ')">' +
+      '<div class="text-line">' + tag + textHtml + '</div>' +
+      '<div class="cn-line ' + (showCN ? 'show' : '') + '">' + (s.cn || '') + '</div>' +
+      '</div>';
+  });
+  displayArea.innerHTML = html || '<div class="empty">无内容</div>';
 
   bindWordClicks();
 }
@@ -801,6 +1205,7 @@ function renderVocab() {
   displayArea.innerHTML = `
     <div class="vocab-actions">
       <button class="v-act" onclick="playAllVocab()">🔊 全部朗读</button>
+      <button class="v-act" onclick="startReview()">🧠 复习</button>
       <button class="v-act" onclick="clearVocab()">🗑 清空</button>
     </div>
     ${vocabList.map(v => `
@@ -815,6 +1220,69 @@ function renderVocab() {
       </div>
     </div>`).join('')}
   `;
+}
+
+// 复习模式
+let reviewQueue = [];
+let reviewIdx = 0;
+let reviewFlipped = false;
+
+function startReview() {
+  if (vocabList.length === 0) return;
+  reviewQueue = [...vocabList].sort(() => Math.random() - 0.5);
+  reviewIdx = 0;
+  reviewFlipped = false;
+  renderReviewCard();
+}
+
+function renderReviewCard() {
+  if (reviewIdx >= reviewQueue.length) {
+    displayArea.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:40px;margin-bottom:10px;">🎉</div>
+        <div style="font-size:16px;font-weight:600;color:var(--accent);margin-bottom:6px;">复习完成！</div>
+        <div style="font-size:12px;color:var(--sub);">共复习了 ${reviewQueue.length} 个单词</div>
+        <button class="v-act" style="margin-top:16px;" onclick="renderVocab()">返回生词本</button>
+      </div>`;
+    return;
+  }
+  const v = reviewQueue[reviewIdx];
+  const cn = v.cn || getWordCN(v.word) || '—';
+  displayArea.innerHTML = `
+    <div style="text-align:center;padding:8px 0;font-size:11px;color:var(--sub);">
+      ${reviewIdx + 1} / ${reviewQueue.length}
+    </div>
+    <div onclick="flipReviewCard()" style="background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:30px 20px;text-align:center;cursor:pointer;min-height:160px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:24px;font-weight:700;color:var(--accent);margin-bottom:8px;">${escapeHtml(v.word)}</div>
+      <div style="font-size:13px;color:var(--sub);">${v.phonetic||''}</div>
+      <div id="reviewCN" style="display:none;font-size:18px;color:var(--text);margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">${escapeHtml(cn)}</div>
+      <div style="font-size:10px;color:var(--sub);margin-top:16px;">${reviewFlipped ? '' : '👆 点击查看翻译'}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="reviewAnswer(false)" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--danger);background:transparent;color:var(--danger);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">❌ 不认识</button>
+      <button onclick="reviewAnswer(true)" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--green);background:transparent;color:var(--green);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">✅ 认识</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button onclick="playVocabWord('${escapeHtml(v.word)}')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;cursor:pointer;font-family:inherit;">🔊 朗读</button>
+      <button onclick="renderVocab()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--sub);font-size:12px;cursor:pointer;font-family:inherit;">退出复习</button>
+    </div>
+  `;
+}
+
+function flipReviewCard() {
+  reviewFlipped = !reviewFlipped;
+  const el = document.getElementById('reviewCN');
+  if (el) el.style.display = reviewFlipped ? 'block' : 'none';
+}
+
+function reviewAnswer(known) {
+  if (!known) {
+    // 不认识的词放到队尾
+    reviewQueue.push(reviewQueue[reviewIdx]);
+  }
+  reviewIdx++;
+  reviewFlipped = false;
+  renderReviewCard();
 }
 
 function playAllVocab() {
@@ -897,9 +1365,27 @@ function setButtons(playing, paused) {
   btnPlay.disabled = playing;
   btnPause.disabled = !playing;
   btnStop.disabled = !playing;
+  document.getElementById('btnPrev').disabled = !playing;
+  document.getElementById('btnNext').disabled = !playing;
   btnPause.textContent = paused ? '▶' : '⏯';
   isPlaying = playing;
   isPaused = paused;
+}
+
+function prevSentence() {
+  if (currentIdx > 0) {
+    synth.cancel();
+    currentIdx--;
+    readNext();
+  }
+}
+
+function nextSentence() {
+  if (currentIdx < sentences.length - 1) {
+    synth.cancel();
+    currentIdx++;
+    readNext();
+  }
 }
 
 function highlightBlock(idx) {
@@ -969,6 +1455,8 @@ function readNext() {
   if (currentIdx>=sentences.length) { finishReading(); return; }
   highlightBlock(currentIdx);
   updateProgress();
+  // 保存进度
+  try { localStorage.setItem('lastSession', JSON.stringify({text: textInput.value, idx: currentIdx})); } catch(e) {}
   const sent = sentences[currentIdx];
   statusBar.textContent = `朗读 ${currentIdx+1}/${sentences.length} (${sent.lang==='en'?'EN':'中'})`;
   statusBar.className = 'status-bar playing';
@@ -988,6 +1476,16 @@ function startReading() {
     if (sentences.length === 0) {
       statusBar.textContent = '内容为空或翻译失败';
       return;
+    }
+    // 若为学习卡片，把新词板块的词组批量加入生词本
+    if (lastParsedCard) {
+      for (const sec of lastParsedCard.sections) {
+        if (sec.type === 'vocab') {
+          for (const it of sec.items) {
+            if (it.phrase) addVocab(it.phrase);
+          }
+        }
+      }
     }
     switchTab('text');
     synth.cancel();
@@ -1021,6 +1519,7 @@ function finishReading() {
   progressBar.style.width='100%';
   document.querySelectorAll('.sent-block').forEach(el=>el.classList.remove('active-block'));
   document.querySelectorAll('.word').forEach(el=>el.classList.remove('active-word'));
+  try { localStorage.removeItem('lastSession'); } catch(e) {}
 }
 
 // ========== 单词弹窗 ==========
@@ -1049,11 +1548,12 @@ function openWordPopup(word, si) {
 
 async function lookupWord(word) {
   try {
-    const resp = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh-CN`);
+    const resp = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(word)}`);
     const data = await resp.json();
-    const result = data.responseData?.translatedText || '';
-    if (result.includes('MYMEMORY') || result.includes('WARNING') || result.includes('TRANSLATION') || result.includes('LIMIT')) return '';
-    return result;
+    if (data && data[0]) {
+      const result = data[0].map(seg => seg[0]).join('');
+      if (result && result !== word) return result;
+    }
   } catch(e) {}
   return '';
 }
@@ -1182,6 +1682,49 @@ function getWordCN(word) {
     'north':'北','south':'南','east':'东','west':'西','color':'颜色','red':'红色','blue':'蓝色','green':'绿色',
     'yellow':'黄色','white':'白色','black':'黑色','pink':'粉色','purple':'紫色','orange':'橙色','brown':'棕色',
     'gray':'灰色',
+    // 公共交通（学习卡片高频词）
+    'one-way':'单程的','round-trip':'往返的','ticket':'票/机票','office':'办公室/处',
+    'fare':'票价/车费','platform':'站台','timetable':'时刻表','express':'快车/快的',
+    'local':'慢车/当地的','delayed':'延误的','transfer':'换乘','entrance':'入口',
+    'first class':'一等座','standard':'标准的','validate':'验票/验证','boarding':'登机',
+    'direct':'直达的','reliable':'可靠的','spacious':'宽敞的','comfortable':'舒适的',
+    'checker':'检查员','counter':'柜台','lounge':'候机室','conveyor':'传送带',
+    'declaration':'申报','duty-free':'免税的','overhead':'头顶的','fasten':'系紧',
+    'tray':'托盘','belt':'带/传送带','connecting':'转机的','layover':'中转停留',
+    'aisle':'过道','departure':'出发','arrival':'到达','gate':'登机口/门',
+    'passport':'护照','visa':'签证','luggage':'行李','baggage':'行李',
+    'suitcase':'行李箱','customs':'海关','immigration':'入境检查','security':'安检',
+    'delay':'延误','cancel':'取消','terminal':'航站楼','emergency':'紧急',
+    'exit':'出口','elevator':'电梯','lobby':'大堂','reservation':'预订',
+    'suite':'套房','towel':'毛巾','shampoo':'洗发水','shower':'淋浴',
+    'bathtub':'浴缸','password':'密码','deposit':'押金','receipt':'收据',
+    'subway':'地铁','metro':'地铁','cab':'出租车','taxi':'出租车',
+    'bus':'公交/巴士','train':'火车','station':'车站','stop':'站点',
+    'intersection':'十字路口','traffic':'交通','crosswalk':'人行横道',
+    'block':'街区','corner':'拐角','direction':'方向','route':'路线',
+    'journey':'旅程','trip':'旅行','travel':'旅行','tourist':'游客',
+    'guide':'导游/指南','map':'地图','ticket machine':'自动售票机',
+    'passenger':'乘客','driver':'司机','conductor':'列车员',
+    // 更多常用词
+    'weather':'天气','sunny':'晴天的','cloudy':'多云的','rainy':'下雨的',
+    'windy':'有风的','snowy':'下雪的','warm':'温暖的','cool':'凉爽的',
+    'temperature':'温度','degree':'度','season':'季节','spring':'春天',
+    'summer':'夏天','autumn':'秋天','winter':'冬天','umbrella':'雨伞',
+    'sunglasses':'太阳镜','sunscreen':'防晒霜','clothes':'衣服','shirt':'衬衫',
+    'pants':'裤子','shoes':'鞋子','jacket':'外套','coat':'大衣','hat':'帽子',
+    'phone':'电话','computer':'电脑','internet':'互联网','website':'网站',
+    'app':'应用','message':'消息','email':'电子邮件','contact':'联系',
+    'meeting':'会议','project':'项目','report':'报告','plan':'计划',
+    'goal':'目标','success':'成功','fail':'失败','try':'尝试',
+    'improve':'改善/提高','practice':'练习','study':'学习','review':'复习',
+    'test':'测试','exam':'考试','score':'分数','level':'水平/等级',
+    'beginner':'初学者','intermediate':'中级','advanced':'高级','fluent':'流利的',
+    'pronunciation':'发音','accent':'口音','grammar':'语法','vocabulary':'词汇',
+    'sentence':'句子','phrase':'短语','word':'单词','letter':'字母',
+    'meaning':'意思','example':'例子','question':'问题','answer':'答案',
+    'correct':'正确的','wrong':'错误的','mistake':'错误','easy':'容易的',
+    'difficult':'困难的','simple':'简单的','complex':'复杂的','clear':'清楚的',
+    'confusing':'令人困惑的','understand':'理解','remember':'记得','forget':'忘记',
   };
   return map[word.toLowerCase()] || '';
 }
@@ -1270,6 +1813,21 @@ window.addEventListener('beforeunload', () => synth.cancel());
 // ========== 初始化 ==========
 loadVocab();
 loadDiary();
+
+// 恢复上次进度
+try {
+  const session = JSON.parse(localStorage.getItem('lastSession') || 'null');
+  if (session && session.text && session.idx > 0) {
+    textInput.value = session.text;
+    renderDisplay().then(() => {
+      if (sentences.length > 0 && session.idx < sentences.length) {
+        currentIdx = session.idx - 1; // 从上一句开始
+        statusBar.textContent = `📌 已恢复进度：第 ${session.idx}/${sentences.length} 句，点▶继续`;
+      }
+    });
+  }
+} catch(e) {}
+
 renderDisplay();
 </script>
 
