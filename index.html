@@ -528,6 +528,8 @@ let currentTab = 'text';
 let speakingWord3 = false;
 let renderVersion = 0; // 防止过期渲染
 let lastParsedCard = null; // 最近一次解析的学习卡片（用于朗读时批量加生词）
+let importedCard = null;   // 通过链接导入的学习卡片结构（保留原始排版）
+let importedText = '';      // 与 importedCard 对应的纯文本，用于内容一致性比对
 
 // DOM
 const textInput = document.getElementById('textInput');
@@ -628,16 +630,40 @@ function detectLang(text) {
 }
 
 // ========== 链接导入 ==========
+// codebuddy.work 分享链接的 SMH 接口域名（与分享卡片同源，支持 CORS）
+const SMH_API_HOST = 'smh26tqjmz2qlj4i.api.tencentsmh.cn';
+
 async function importFromURL() {
   const url = document.getElementById('urlInput').value.trim();
   if (!url) { statusBar.textContent = '请输入链接'; return; }
   statusBar.textContent = '正在导入内容…';
   statusBar.className = 'status-bar';
-  
-  // 尝试多个方案
+
+  // 识别 codebuddy.work 分享链接（形如 .../agents/share/CODE?platform=workbuddy）
+  const m = url.match(/codebuddy\.work\/[^'"]*?\/share\/([A-Za-z0-9_\-]+)/i);
+  if (m) {
+    const code = m[1];
+    try {
+      const html = await fetchCodebuddyCard(code);
+      const card = extractCardFromHTML(html);
+      if (!card || card.sections.length === 0) throw new Error('未识别到学习内容');
+      const tv = cardToText(card);
+      importedCard = card;
+      importedText = tv;
+      textInput.value = tv;
+      await applyCard(card);
+      statusBar.textContent = '✅ 导入成功！' + (card.meta.day ? ' ' + card.meta.day : '');
+      statusBar.className = 'status-bar success';
+      return;
+    } catch (e) {
+      statusBar.textContent = '⚠️ 导入失败：' + (e && e.message ? e.message : e) + '（可手动复制粘贴到文本框）';
+      statusBar.className = 'status-bar error';
+      return;
+    }
+  }
+
+  // 其它链接：CORS 代理提取（回退方案）
   let content = '';
-  
-  // 方案1：CORS 代理（可能拿到 iframe 外层 HTML）
   const proxies = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   ];
@@ -649,31 +675,191 @@ async function importFromURL() {
         content = extractTextFromHTML(html);
         if (content && content.length > 50) break;
       }
-    } catch(e) {}
+    } catch (e) {}
   }
-
-  // 方案2：直接 fetch
   if (!content || content.length < 50) {
     try {
       const resp = await fetch(url);
       const html = await resp.text();
       content = extractTextFromHTML(html);
-    } catch(e) {}
+    } catch (e) {}
   }
-
-  // 方案3：提示用户复制
   if (!content || content.length < 50) {
-    statusBar.textContent = '⚠️ 链接内容在安全框架内，无法自动提取。请在卡片页面长按→全选→复制→粘贴到文本框';
+    statusBar.textContent = '⚠️ 无法自动提取，请在页面长按→全选→复制→粘贴到文本框';
+    statusBar.className = 'status-bar error';
     return;
   }
-  
-  if (content && content.length > 20) {
-    textInput.value = content;
-    statusBar.textContent = '✅ 导入成功！';
-    await renderDisplay();
-  } else {
-    statusBar.textContent = '⚠️ 未能提取内容，请手动复制粘贴';
+  textInput.value = content;
+  statusBar.textContent = '✅ 导入成功！';
+  statusBar.className = 'status-bar success';
+  await renderDisplay();
+}
+
+// 通过 codebuddy.work 分享 API 获取卡片 HTML（纯前端，依赖接口 CORS）
+async function fetchCodebuddyCard(code) {
+  // 1) 元数据：拿到文件 inode
+  const metaResp = await fetch(`https://codebuddy.work/v2/as/p/netdisk/share/${encodeURIComponent(code)}`, {
+    headers: { 'User-Agent': 'Mozilla/5.0' }
+  });
+  if (!metaResp.ok) throw new Error('链接无效或已失效');
+  const meta = await metaResp.json();
+  if (!meta.data || !meta.data.inodes || !meta.data.inodes.length) throw new Error('链接无内容');
+  const inode = meta.data.inodes[0];
+
+  // 2) 校验并获取访问令牌
+  const verifyResp = await fetch(`https://${SMH_API_HOST}/api/v1/share/verify/${encodeURIComponent(code)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+    body: '{}'
+  });
+  if (!verifyResp.ok) throw new Error('校验失败');
+  const verify = await verifyResp.json();
+  const token = verify.accessToken;
+  if (!token) throw new Error('获取访问令牌失败');
+
+  // 3) 下载文件（跟随 302 到 storage）
+  const fileResp = await fetch(`https://${SMH_API_HOST}/api/v1/share/file/${encodeURIComponent(code)}/${encodeURIComponent(inode)}?download&access_token=${encodeURIComponent(token)}`, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    redirect: 'follow'
+  });
+  if (!fileResp.ok) throw new Error('下载失败');
+  const html = await fileResp.text();
+  if (!html || html.length < 50) throw new Error('内容为空');
+  return html;
+}
+
+// 将卡片 HTML 解析为 ParsedCard 结构（保留词汇/复习/对话/作文板块）
+function extractCardFromHTML(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const card = { meta: { day: '', topic: '', stats: null }, sections: [] };
+
+  const h1 = doc.querySelector('.header h1');
+  if (h1) card.meta.day = h1.textContent.trim();
+  const sub = doc.querySelector('.header .sub');
+  if (sub) card.meta.topic = sub.textContent.trim();
+  const statVals = Array.from(doc.querySelectorAll('.stats .val'));
+  if (statVals.length >= 3) {
+    card.meta.stats = {
+      total: statVals[0].textContent.trim(),
+      days: statVals[1].textContent.trim(),
+      new: statVals[2].textContent.trim(),
+      review: statVals[3] ? statVals[3].textContent.trim() : ''
+    };
   }
+
+  Array.from(doc.querySelectorAll('.section')).forEach(sec => {
+    const grid = sec.querySelector('.word-grid');
+    const reviewBlocks = sec.querySelectorAll('.review-block');
+    const dialogue = sec.querySelector('.dialogue');
+    const essay = sec.querySelector('.essay');
+    const titleEl = sec.querySelector('.section-title');
+    const title = titleEl ? titleEl.textContent.trim() : '';
+
+    if (grid) {
+      const items = Array.from(grid.querySelectorAll('.word-card')).map(el => ({
+        phrase: (el.querySelector('.en') || {}).textContent ? el.querySelector('.en').textContent.trim() : '',
+        cn: (el.querySelector('.cn') || {}).textContent ? el.querySelector('.cn').textContent.trim() : '',
+        example: (el.querySelector('.ex') || {}).textContent ? el.querySelector('.ex').textContent.trim() : '',
+        exampleCn: (el.querySelector('.ex-cn') || {}).textContent ? el.querySelector('.ex-cn').textContent.trim() : ''
+      })).filter(i => i.phrase);
+      if (items.length) card.sections.push({ type: 'vocab', title, items });
+    } else if (reviewBlocks.length) {
+      reviewBlocks.forEach(block => {
+        const label = block.querySelector('.label');
+        const groupTitle = label ? label.textContent.trim() : '复习';
+        const items = Array.from(block.querySelectorAll('.item')).map(el => {
+          const t = el.textContent.trim();
+          const mm = t.match(/^(.*?[a-zA-Z0-9'’\-.\s]+?)\s+([\u4e00-\u9fff].*)$/);
+          if (mm) return { en: mm[1].trim(), cn: mm[2].trim() };
+          return { en: t, cn: '' };
+        }).filter(i => i.en);
+        if (items.length) card.sections.push({ type: 'review', title: groupTitle, items });
+      });
+    } else if (dialogue) {
+      const items = Array.from(dialogue.querySelectorAll('.turn')).map(turn => ({
+        role: (turn.querySelector('.role') || {}).textContent ? turn.querySelector('.role').textContent.trim() : '',
+        line: (turn.querySelector('.line') || {}).textContent ? turn.querySelector('.line').textContent.trim() : '',
+        lineCn: (turn.querySelector('.line-cn') || {}).textContent ? turn.querySelector('.line-cn').textContent.trim() : ''
+      })).filter(i => i.line);
+      if (items.length) card.sections.push({ type: 'dialogue', title, items });
+    } else if (essay) {
+      const enLines = Array.from(essay.querySelectorAll('.en-line'));
+      const cnLines = Array.from(essay.querySelectorAll('.cn-line'));
+      const items = [];
+      const n = Math.max(enLines.length, cnLines.length);
+      for (let i = 0; i < n; i++) {
+        items.push({
+          en: enLines[i] ? enLines[i].textContent.trim() : '',
+          cn: cnLines[i] ? cnLines[i].textContent.trim() : ''
+        });
+      }
+      const filtered = items.filter(i => i.en || i.cn);
+      if (filtered.length) card.sections.push({ type: 'essay', title, items: filtered });
+    }
+  });
+  return card;
+}
+
+// 将 ParsedCard 还原为纯文本（用于文本框持久化 / 日记复制 / 一致性比对）
+function cardToText(card) {
+  const lines = [];
+  if (card.meta.day) lines.push(card.meta.day);
+  if (card.meta.topic) lines.push(card.meta.topic);
+  if (card.meta.stats) {
+    lines.push(`${card.meta.stats.new} 新词 ${card.meta.stats.review} 复习 ${card.meta.stats.total} 累计词汇`);
+  }
+  lines.push('');
+  for (const sec of card.sections) {
+    if (sec.type === 'vocab') {
+      lines.push('今日新词 — ' + sec.title.replace(/^今日新词[—-]?/, '').trim());
+      for (const it of sec.items) {
+        lines.push(it.phrase);
+        if (it.cn) lines.push(it.cn);
+        if (it.example) lines.push(it.example);
+        if (it.exampleCn) lines.push(it.exampleCn);
+      }
+    } else if (sec.type === 'review') {
+      lines.push(sec.title);
+      for (const it of sec.items) lines.push(it.cn ? `${it.en} ${it.cn}` : it.en);
+    } else if (sec.type === 'dialogue') {
+      lines.push(sec.title);
+      for (const it of sec.items) {
+        const prefix = it.role ? it.role + '：' : '';
+        lines.push(prefix + it.line);
+        if (it.lineCn) lines.push(it.lineCn);
+      }
+    } else if (sec.type === 'essay') {
+      lines.push(sec.title);
+      for (const it of sec.items) {
+        if (it.en) lines.push(it.en);
+        if (it.cn) lines.push(it.cn);
+      }
+    }
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+// 直接渲染已解析的卡片（保留结构，跳过文本重解析）
+async function applyCard(card) {
+  lastParsedCard = card;
+  sentences = cardToSentences(card);
+  statusBar.textContent = '翻译中…';
+  statusBar.className = 'status-bar';
+  const needTrans = sentences.filter(s => s.lang === 'en' && !s.cn);
+  if (needTrans.length) {
+    try {
+      const results = await Promise.all(needTrans.map(s => translateText(s.text)));
+      let ri = 0;
+      for (const s of sentences) {
+        if (s.lang === 'en' && !s.cn) s.cn = results[ri++] || '';
+      }
+    } catch (e) {}
+  }
+  if (currentTab === 'text') renderSentencesHTML();
+  const metaInfo = card.meta.day ? card.meta.day + ' · ' : '';
+  statusBar.textContent = metaInfo + '共 ' + sentences.length + ' 句 · 就绪';
+  statusBar.className = 'status-bar';
 }
 
 function extractTextFromHTML(html) {
@@ -1169,6 +1355,12 @@ function copyDiaryDay(dateStr) {
 // ========== 渲染 ==========
 async function renderDisplay() {
   const text = textInput.value.trim();
+  // 若内容与导入卡片一致，直接复用已解析结构（保留板块排版）
+  if (importedCard && text === importedText) {
+    await applyCard(importedCard);
+    return;
+  }
+  importedCard = null;
   if (!text) {
     displayArea.innerHTML = '<div class="empty">👆 粘贴文字，自动拆分句子<br>中英文混合也能逐句朗读</div>';
     sentences = [];
