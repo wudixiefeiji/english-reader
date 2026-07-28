@@ -96,6 +96,19 @@ textarea{resize:vertical;min-height:100px}
 input:focus,textarea:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(74,123,247,.12)}
 input::placeholder,textarea::placeholder{color:var(--text3);font-weight:500}
 
+/* ===== 日头部卡片 ===== */
+.day-header-card{background:linear-gradient(135deg,rgba(139,92,246,.06),rgba(6,182,212,.04));border:1px solid rgba(139,92,246,.12)}
+.day-header-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.day-badge{background:var(--grad-aurora);color:#fff;padding:4px 12px;border-radius:var(--radius-pill);font-size:13px;font-weight:800;letter-spacing:.5px}
+.day-title-text{font-size:18px;font-weight:700;color:var(--text)}
+
+/* ===== 阅读理解 ===== */
+.essay-area p{font-size:15px;line-height:1.8;color:var(--text);margin-bottom:12px;cursor:pointer;padding:6px 10px;border-radius:8px;transition:background .15s}
+.essay-area p:active{background:rgba(255,255,255,.04)}
+.essay-area p:first-child{font-size:18px;font-weight:700;color:var(--cyan-light);margin-bottom:16px}
+.essay-area-cn p{font-size:14px;line-height:1.7;color:var(--text2);margin-bottom:8px}
+.essay-area-cn p:first-child{font-size:16px;font-weight:600;color:var(--text)}
+
 /* ===== 底部导航 ===== */
 .nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;display:flex;
   background:rgba(13,15,26,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);
@@ -110,20 +123,20 @@ input::placeholder,textarea::placeholder{color:var(--text3);font-weight:500}
 .stats-row{display:flex;gap:10px;margin-bottom:16px}
 .stat-card{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius);padding:16px 8px;text-align:center;box-shadow:var(--shadow-card);transition:border-color .2s}
 .stat-card:hover{border-color:var(--border-strong)}
-.stat-card .num{font-size:22px;font-weight:800;background:var(--grad-text);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.stat-card .lbl{font-size:11px;color:var(--text2);margin-top:4px;font-weight:500}
-.stat-card .ic{font-size:24px;margin-bottom:6px}
+.stat-card .num{font-size:20px;font-weight:800;background:var(--grad-text);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-card .lbl{font-size:10px;color:var(--text2);margin-top:3px;font-weight:500;letter-spacing:.5px}
 
 /* ===== 学习模块卡片 ===== */
 .module-card{display:flex;align-items:center;gap:14px;padding:16px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;box-shadow:var(--shadow-card);transition:all .15s;position:relative;overflow:hidden;cursor:pointer}
 .module-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--grad-aurora);opacity:0;transition:opacity .2s}
 .module-card:active{transform:scale(.97);border-color:var(--border-strong)}
 .module-card:hover::before{opacity:1}
-.module-card .mc-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-.module-card .mc-icon.purple{background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(6,182,212,.08));border:1px solid rgba(139,92,246,.3)}
-.module-card .mc-icon.blue{background:linear-gradient(135deg,rgba(74,123,247,.15),rgba(91,139,247,.08));border:1px solid rgba(74,123,247,.25)}
-.module-card .mc-icon.green{background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(22,163,74,.08));border:1px solid rgba(34,197,94,.25)}
-.module-card .mc-icon.orange{background:linear-gradient(135deg,rgba(249,115,22,.15),rgba(251,191,36,.08));border:1px solid rgba(249,115,22,.25)}
+.module-card .mc-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;letter-spacing:.5px}
+.module-card .mc-icon.purple{background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(6,182,212,.08));border:1px solid rgba(139,92,246,.3);color:#a78bfa}
+.module-card .mc-icon.blue{background:linear-gradient(135deg,rgba(74,123,247,.15),rgba(91,139,247,.08));border:1px solid rgba(74,123,247,.25);color:#60a5fa}
+.module-card .mc-icon.green{background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(22,163,74,.08));border:1px solid rgba(34,197,94,.25);color:#4ade80}
+.module-card .mc-icon.cyan{background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(34,211,238,.08));border:1px solid rgba(6,182,212,.25);color:#22d3ee}
+.module-card .mc-icon.orange{background:linear-gradient(135deg,rgba(249,115,22,.15),rgba(251,191,36,.08));border:1px solid rgba(249,115,22,.25);color:#fb923c}
 .module-card .mc-body{flex:1}
 .module-card .mc-title{font-size:15px;font-weight:700;color:var(--text)}
 .module-card .mc-sub{font-size:13px;color:var(--text2);font-weight:500;margin-top:2px}
@@ -213,17 +226,13 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 <!-- ============ 首页 ============ -->
 <div class="page active" id="page-home">
   <div class="topbar">
-    <div class="title">✈️ 旅行英语</div>
-    <div class="topbar-stats">
-      <div class="tb-stat tb-streak"><span class="ic">🔥</span><span id="tb-streak">0</span></div>
-      <div class="tb-stat tb-xp"><span class="ic">⚡</span><span id="tb-xp">0</span></div>
-    </div>
+    <div class="title">旅行英语</div>
   </div>
   <div class="progress-wrap"><div class="progress-fill" id="daily-progress" style="width:0%"></div></div>
 
   <!-- 未导入时显示导入 -->
   <div id="no-plan-card" class="card">
-    <h3>📋 导入学习计划</h3>
+    <h3>导入学习计划</h3>
     <div class="import-box">
       <div class="ic">📥</div>
       <div class="tip">从 WorkBuddy 复制学习内容粘贴到下方</div>
@@ -235,19 +244,19 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 
   <!-- 已导入后显示今日学习 -->
   <div id="has-plan-card" class="hidden">
-    <div class="card">
-      <h3>📅 <span id="today-day-title">今日学习</span></h3>
+    <div class="card day-header-card">
+      <div class="day-header-top">
+        <span class="day-badge" id="today-day-num">Day 1</span>
+        <span class="day-title-text" id="today-day-title">今日学习</span>
+      </div>
       <div id="today-desc" class="muted mb8"></div>
       <div id="today-stats" class="stats-row"></div>
     </div>
 
-    <div class="card">
-      <h3>🎯 今日任务</h3>
-      <div id="module-list"></div>
-    </div>
+    <div id="module-list"></div>
 
     <div class="card">
-      <h3>📆 学习日历</h3>
+      <h3>学习日历</h3>
       <div id="day-grid-area"></div>
     </div>
   </div>
@@ -300,25 +309,44 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
   <div class="muted mt8" style="text-align:center;font-size:12px">点击任意句子可单独朗读</div>
 </div>
 
+<!-- ============ 阅读理解页 ============ -->
+<div class="page" id="page-essay">
+  <div class="topbar">
+    <div class="title">阅读理解</div>
+    <button class="btn sm sec" onclick="nav('home')">返回</button>
+  </div>
+  <div class="card">
+    <div id="essay-en" class="essay-area"></div>
+  </div>
+  <div class="card">
+    <h3>中文翻译</h3>
+    <div id="essay-cn" class="essay-area-cn"></div>
+  </div>
+  <div class="row">
+    <button class="btn sec" onclick="speakEssay()">朗读全文</button>
+    <button class="btn blue" onclick="markEssayDone()">完成阅读</button>
+  </div>
+</div>
+
 <!-- ============ 统计页 ============ -->
 <div class="page" id="page-stats">
-  <div class="topbar"><div class="title">📊 统计</div></div>
+  <div class="topbar"><div class="title">统计</div></div>
   <div class="stats-row" id="pf-stats"></div>
   <div class="card">
-    <h3>📈 近7天学习</h3>
+    <h3>近7天学习</h3>
     <div style="position:relative;padding-bottom:24px">
       <div class="chart" id="pf-chart"></div>
     </div>
   </div>
   <div class="card">
-    <h3>⚙️ 设置</h3>
+    <h3>设置</h3>
     <label class="label">每日目标（XP）</label>
     <input type="number" id="set-goal" value="100">
     <button class="btn blue mt8" onclick="saveSettings(this)">保存设置</button>
     <div id="save-msg" class="hidden" style="text-align:center;color:var(--green);font-size:13px;font-weight:600;margin-top:8px">设置已保存！</div>
   </div>
   <div class="card">
-    <h3>📥 重新导入</h3>
+    <h3>重新导入</h3>
     <div class="muted mb8">重新导入会清空当前学习数据</div>
     <textarea id="reimport-input" placeholder="粘贴新的学习内容..." style="min-height:80px;font-size:14px"></textarea>
     <button class="btn sec" onclick="reimportPlan()">重新导入</button>
@@ -330,8 +358,8 @@ hr{border:none;border-top:1px solid var(--border);margin:16px 0}
 
 <!-- 底部导航 -->
 <nav class="nav">
-  <button class="nav-btn active" id="nav-home" onclick="nav('home')"><span class="ic">🏠</span>首页</button>
-  <button class="nav-btn" id="nav-stats" onclick="nav('stats')"><span class="ic">📊</span>统计</button>
+  <button class="nav-btn active" id="nav-home" onclick="nav('home')">首页</button>
+  <button class="nav-btn" id="nav-stats" onclick="nav('stats')">统计</button>
 </nav>
 
 <div id="loading"><div class="spinner"></div><p>加载中...</p></div>
@@ -404,28 +432,75 @@ function updateStreak() {
   }
 }
 function updateTopbar() {
-  document.getElementById('tb-streak').textContent = Store.get('streak', 0);
-  document.getElementById('tb-xp').textContent = Store.get('xpLog', {})[todayKey()] || 0;
   const progress = calcDayProgress();
   document.getElementById('daily-progress').style.width = progress + '%';
 }
 function calcDayProgress() {
   const currentDay = Store.get('currentDay', 1);
+  const days = Store.get('days', {});
+  const dayData = days[currentDay] || {};
   const progress = Store.get('dayProgress', {});
-  const dp = progress[currentDay] || { newWords: false, review: false, dialog: false };
-  const done = (dp.newWords ? 1 : 0) + (dp.review ? 1 : 0) + (dp.dialog ? 1 : 0);
-  return Math.round((done / 3) * 100);
+  const dp = progress[currentDay] || { newWords: false, review: false, dialog: false, essay: false };
+
+  // 根据实际有内容的模块计算总数
+  let total = 0, done = 0;
+  if ((dayData.newWords || []).length > 0) { total++; if (dp.newWords) done++; }
+  if ((dayData.reviewWords || []).length > 0) { total++; if (dp.review) done++; }
+  if ((dayData.dialog || []).length > 0) { total++; if (dp.dialog) done++; }
+  if ((dayData.essay?.en || []).length > 0) { total++; if (dp.essay) done++; }
+  return total > 0 ? Math.round((done / total) * 100) : 0;
 }
 function markModuleDone(mod) {
   const currentDay = Store.get('currentDay', 1);
   const progress = Store.get('dayProgress', {});
-  if (!progress[currentDay]) progress[currentDay] = { newWords: false, review: false, dialog: false };
+  if (!progress[currentDay]) progress[currentDay] = { newWords: false, review: false, dialog: false, essay: false };
   progress[currentDay][mod] = true;
   Store.set('dayProgress', progress);
   addXP(30);
   toast('完成！+30 XP', 'success');
   updateTopbar();
   renderHome();
+}
+
+/* ===== 阅读理解 ===== */
+let essayLines = [];
+let essayCnLines = [];
+
+function startEssay() {
+  const days = Store.get('days', {});
+  const currentDay = Store.get('currentDay', 1);
+  const dayData = days[currentDay] || {};
+  essayLines = dayData.essay?.en || [];
+  essayCnLines = dayData.essay?.cn || [];
+
+  document.getElementById('essay-en').innerHTML = essayLines.map((line, i) =>
+    `<p class="essay-line" onclick="speakEssayLine(${i})">${line}</p>`
+  ).join('');
+
+  document.getElementById('essay-cn').innerHTML = essayCnLines.map(line =>
+    `<p class="essay-line-cn">${line}</p>`
+  ).join('');
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-essay').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+}
+
+function speakEssay() {
+  const text = essayLines.join('. ');
+  speak(text, 0.85);
+  toast('朗读中...', 'success');
+}
+
+function speakEssayLine(idx) {
+  if (essayLines[idx]) {
+    speak(essayLines[idx], 0.8);
+  }
+}
+
+function markEssayDone() {
+  markModuleDone('essay');
+  nav('home');
 }
 
 /* ===== 首页渲染 ===== */
@@ -440,37 +515,56 @@ function renderHome() {
   if (!hasPlan) return;
 
   const currentDay = Store.get('currentDay', 1);
-  const dayData = days[currentDay] || { title: 'Day ' + currentDay, desc: '', newWords: [], reviewWords: [], dialog: [] };
+  const dayData = days[currentDay] || { title: 'Day ' + currentDay, desc: '', newWords: [], reviewWords: [], dialog: [], essay: { en: [], cn: [] } };
   const progress = Store.get('dayProgress', {})[currentDay] || {};
 
-  document.getElementById('today-day-title').textContent = dayData.title || ('Day ' + currentDay);
+  document.getElementById('today-day-num').textContent = 'Day ' + currentDay;
+  document.getElementById('today-day-title').textContent = dayData.title ? dayData.title.replace(/Day\s*\d+\s*[·•\-:：\s]*/, '') : '';
   document.getElementById('today-desc').textContent = dayData.desc || '';
 
   // 统计
   const newCount = (dayData.newWords || []).length;
   const reviewCount = (dayData.reviewWords || []).length;
   const dlgCount = (dayData.dialog || []).filter(l => l.role === 'agent' || l.role === 'you').length;
+  const essayCount = (dayData.essay?.en || []).length;
   document.getElementById('today-stats').innerHTML = `
-    <div class="stat-card"><div class="ic">🆕</div><div class="num">${newCount}</div><div class="lbl">今日新词</div></div>
-    <div class="stat-card"><div class="ic">🔁</div><div class="num">${reviewCount}</div><div class="lbl">复习单词</div></div>
-    <div class="stat-card"><div class="ic">💬</div><div class="num">${dlgCount}</div><div class="lbl">对话句数</div></div>`;
+    <div class="stat-card"><div class="num">${newCount}</div><div class="lbl">新词</div></div>
+    <div class="stat-card"><div class="num">${reviewCount}</div><div class="lbl">复习</div></div>
+    <div class="stat-card"><div class="num">${dlgCount}</div><div class="lbl">对话</div></div>
+    <div class="stat-card"><div class="num">${essayCount}</div><div class="lbl">阅读</div></div>`;
 
-  // 学习模块
-  const modules = [
-    { key: 'newWords', icon: '🆕', title: '今日新词', sub: newCount + ' 个新单词', color: 'purple', badge: progress.newWords ? '已完成' : (newCount + '词'), done: progress.newWords, action: 'startWordStudy("new")' },
-    { key: 'review', icon: '🔁', title: '艾宾浩斯复习', sub: reviewCount + ' 个复习单词', color: 'blue', badge: progress.review ? '已完成' : (reviewCount + '词'), done: progress.review, action: 'startWordStudy("review")' },
-    { key: 'dialog', icon: '💬', title: '口语对话练习', sub: dlgCount + ' 句对话', color: 'green', badge: progress.dialog ? '已完成' : (dlgCount + '句'), done: progress.dialog, action: 'startDialog()' },
-  ];
-  document.getElementById('module-list').innerHTML = modules.map(m =>
-    `<div class="module-card ${m.done ? 'done' : ''}" onclick="${m.action}">
-      <div class="mc-icon ${m.color}">${m.icon}</div>
-      <div class="mc-body"><div class="mc-title">${m.title}</div><div class="mc-sub">${m.sub}</div></div>
-      <div class="mc-badge">${m.badge}</div>
-    </div>`
-  ).join('');
+  // 学习模块 - 只显示有内容的模块
+  const modules = [];
+  if (newCount > 0) {
+    modules.push({ key: 'newWords', icon: '词汇', title: '今日新词', sub: newCount + ' 个新单词', color: 'purple', badge: progress.newWords ? '已完成' : (newCount + '词'), done: progress.newWords, action: 'startWordStudy("new")' });
+  }
+  if (reviewCount > 0) {
+    modules.push({ key: 'review', icon: '复习', title: '艾宾浩斯复习', sub: reviewCount + ' 个复习单词', color: 'blue', badge: progress.review ? '已完成' : (reviewCount + '词'), done: progress.review, action: 'startWordStudy("review")' });
+  }
+  if (dlgCount > 0) {
+    modules.push({ key: 'dialog', icon: '对话', title: '口语对话练习', sub: dlgCount + ' 句对话', color: 'green', badge: progress.dialog ? '已完成' : (dlgCount + '句'), done: progress.dialog, action: 'startDialog()' });
+  }
+  if (essayCount > 0) {
+    modules.push({ key: 'essay', icon: '阅读', title: '阅读理解', sub: essayCount + ' 段短文', color: 'cyan', badge: progress.essay ? '已完成' : '阅读', done: progress.essay, action: 'startEssay()' });
+  }
+
+  if (modules.length === 0) {
+    document.getElementById('module-list').innerHTML = '<div class="card"><div class="muted" style="text-align:center;padding:20px 0">这一天暂无学习内容</div></div>';
+  } else {
+    document.getElementById('module-list').innerHTML = modules.map(m =>
+      `<div class="module-card ${m.done ? 'done' : ''}" onclick="${m.action}">
+        <div class="mc-icon ${m.color}">${m.icon}</div>
+        <div class="mc-body"><div class="mc-title">${m.title}</div><div class="mc-sub">${m.sub}</div></div>
+        <div class="mc-badge">${m.badge}</div>
+      </div>`
+    ).join('');
+  }
 
   // Day 选择器
   renderDayGrid();
+
+  // 滚动到顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderDayGrid() {
@@ -939,9 +1033,9 @@ function renderStats() {
   }
 
   document.getElementById('pf-stats').innerHTML = `
-    <div class="stat-card"><div class="ic">🔥</div><div class="num">${streak}</div><div class="lbl">连续天数</div></div>
-    <div class="stat-card"><div class="ic">⚡</div><div class="num">${totalXP}</div><div class="lbl">总XP</div></div>
-    <div class="stat-card"><div class="ic">📖</div><div class="num">${totalWords}</div><div class="lbl">单词总数</div></div>`;
+    <div class="stat-card"><div class="num">${streak}</div><div class="lbl">连续天数</div></div>
+    <div class="stat-card"><div class="num">${totalXP}</div><div class="lbl">总XP</div></div>
+    <div class="stat-card"><div class="num">${totalWords}</div><div class="lbl">单词总数</div></div>`;
 
   // 柱状图 - 近7天 XP
   const chartDays = [];
